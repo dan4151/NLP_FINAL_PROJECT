@@ -259,12 +259,37 @@ class OnlineSimulationDataSet(Dataset):
         def return_to_init_proba(self):
             self.user_proba = self.nature.copy()
 
+
         def update_proba(self):
             reduce_feelings = np.random.rand(len(self.ACTIONS) - 1) * self.user_improve * 10/9 - (self.user_improve / 10)
             total_reduced = self.user_proba[1:] * reduce_feelings
             self.user_proba[1:] -= total_reduced
             self.user_proba[1:] = np.maximum(0, self.user_proba[1:])
             self.user_proba[0] = 1 - self.user_proba[1:].sum()
+            print("not good")
+
+
+        def update_proba_dynamic(self, hotels, action, strategy, theta=0.05):
+            print("here")
+            print(self.user_proba)
+            a = 0/0
+            if (np.mean(hotels) < 8 and action == 1) or (np.mean(hotels) >= 8 and action == 0):
+                theta *= -1   #reduce probability for bad strategy
+            n = len(self.user_proba)
+            #probs = np.array(self.user_proba, dtype=float)
+            new_value = np.clip(self.user_proba[strategy] + theta, 0, 1)
+            delta = new_value - self.user_proba[strategy]
+            self.user_proba[strategy] = new_value
+            if delta == 0 or n == 1:
+                return
+            adjustment_per_element = -delta / (n - 1)
+            for i in range(n):
+                if i != strategy:
+                    self.user_proba[i] = np.clip(self.user_proba[i] + adjustment_per_element, 0, 1)
+            total = np.sum(self.user_proba)
+            if not np.isclose(total, 1.0):
+                self.user_proba /= total
+
 
     def play_round(self, bot_message, user, previous_rounds, hotel, review_id):
         user_strategy = self.sample_from_probability_vector(user.user_proba)
@@ -276,7 +301,7 @@ class OnlineSimulationDataSet(Dataset):
                        "review_features": review_features,
                        "review_id": review_id}
         user_action = user_strategy_function(information)
-        return user_action
+        return user_action, user_strategy
 
     @staticmethod
     def sample_from_probability_vector(probabilities):
@@ -365,8 +390,11 @@ class OnlineSimulationDataSet(Dataset):
                     review_id = self.get_review_id(hotel_id, np.argmax(hotel == bot_message))
 
                     signal_error = np.random.normal(0, self.SIMULATION_SIGNAL_EPSILON)
-                    user_action = self.play_round(bot_message + signal_error, user, previous_rounds,
+                    #added user_strategy
+                    user_action, user_strategy = self.play_round(bot_message + signal_error, user, previous_rounds,
                                                   hotel, review_id)  # DM plays
+
+
                     round_result = self.check_choice(hotel, user_action)  # round results
                     correct_answers += round_result
 
@@ -375,7 +403,10 @@ class OnlineSimulationDataSet(Dataset):
                     else:
                         self.n_dont_go += 1
 
-                    user.update_proba()  # update user vector
+                    # my updated proba
+                    #hotel - real hotel scores, user_action - binary 1 or 0
+                    user.update_proba_dynamic(hotel, user_action, user_strategy)
+                    #user.update_proba()  # update user vector
                     previous_rounds += [(hotel, bot_message, user_action)]
 
                     last_didGo_True = last_didGo == 1
