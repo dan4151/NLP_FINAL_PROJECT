@@ -215,7 +215,7 @@ class OnlineSimulationDataSet(Dataset):
 
         pbar = trange(self.max_active)
         for i in pbar:
-            self.new_user()
+            self.new_user(config["theta"])
             pbar.set_description(f"Create online-simulation users for this epoch. "
                                  f"mean games/user: {(self.total_games_created / self.next_user):.2f}")
 
@@ -260,19 +260,15 @@ class OnlineSimulationDataSet(Dataset):
             self.user_proba = self.nature.copy()
 
 
-        def update_proba(self):
+        def update_proba(self): # original method, not used
             reduce_feelings = np.random.rand(len(self.ACTIONS) - 1) * self.user_improve * 10/9 - (self.user_improve / 10)
             total_reduced = self.user_proba[1:] * reduce_feelings
             self.user_proba[1:] -= total_reduced
             self.user_proba[1:] = np.maximum(0, self.user_proba[1:])
             self.user_proba[0] = 1 - self.user_proba[1:].sum()
-            print("not good")
 
 
-        def update_proba_dynamic(self, hotels, action, strategy, theta=0.05):
-            print("here")
-            print(self.user_proba)
-            a = 0/0
+        def update_proba_dynamic(self, hotels, action, strategy, theta):
             if (np.mean(hotels) < 8 and action == 1) or (np.mean(hotels) >= 8 and action == 0):
                 theta *= -1   #reduce probability for bad strategy
             n = len(self.user_proba)
@@ -358,7 +354,7 @@ class OnlineSimulationDataSet(Dataset):
                 return random.sample(options, self.bots_per_user)
 
 
-    def new_user(self):
+    def new_user(self, theta):
         user_id = self.next_user
         assert user_id < self.n_users
         args = {"favorite_review": self.get_review()}
@@ -405,7 +401,7 @@ class OnlineSimulationDataSet(Dataset):
 
                     # my updated proba
                     #hotel - real hotel scores, user_action - binary 1 or 0
-                    user.update_proba_dynamic(hotel, user_action, user_strategy)
+                    user.update_proba_dynamic(hotel, user_action, user_strategy, theta)
                     #user.update_proba()  # update user vector
                     previous_rounds += [(hotel, bot_message, user_action)]
 

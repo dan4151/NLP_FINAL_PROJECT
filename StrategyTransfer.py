@@ -64,6 +64,8 @@ parser.add_argument('--OFFLINE_SIM_DATA_PATH', type=str, default="data/LLM_games
 parser.add_argument('--personas_balanced', type=str2bool, default=True, help='Personas balanced flag')
 parser.add_argument('--personas_group_number', type=int, default=-1, help='Personas group number')
 
+# Adding wandb parameter for distribution of agents strategy pick rate of change
+parser.add_argument('--theta', type=float, default=0.02, help='Agents distribution change rate')
 
 args = parser.parse_args()
 
